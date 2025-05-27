@@ -1,19 +1,32 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
-trigger:
-- main
+trigger: none  # Change to 'main' or another branch name to enable trigger
 
 pool:
-  vmImage: ubuntu-latest
+  name: Default  # Replace with your self-hosted agent pool name
 
-steps:
-- script: ipconfig
-  displayName: 'Run a one-line script'
+stages:
+  - stage: Sourcecode
+    displayName: 'Snyk Source Code Scan Stage'
+    jobs:
+      - job: RunSnyk
+        displayName: 'Run Snyk Scan on Local WebGoat'
+        steps:
+          - checkout: none  # Do not clone any repo
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+          - task: PowerShell@2
+            displayName: 'Run Snyk Code Scan'
+            inputs:
+              targetType: 'inline'
+              script: |
+                cd "C:\Gitlab_Integration\Snyk"
+                
+                # Authenticate with Snyk using token from environment variable
+                .\snyk-win.exe auth $env:SNYK_TOKEN
+
+                # Run Snyk Code test on local source directory
+                .\snyk-win.exe code test 'C:\Gitlab_Integration\Snyk\WebGoat-main' > 'C:\Gitlab_Integration\Report\Snyk_sourcecode.txt'
+
+                # Allow pipeline to continue even if issues are found
+                if ($LASTEXITCODE -ne 0) { 
+                  Write-Host "Snyk found issues, continuing pipeline."
+                  exit 0 
+                }
